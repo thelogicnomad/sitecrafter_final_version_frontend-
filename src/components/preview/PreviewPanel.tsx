@@ -1,0 +1,339 @@
+import React, { useState, useCallback } from 'react';
+import Editor from '@monaco-editor/react';
+import { FileTree, FileNode } from './FileTree';
+import {
+    Code2,
+    Eye,
+    Download,
+    ExternalLink,
+    Copy,
+    Check,
+    FileCode,
+    FolderTree,
+    Save,
+    Terminal,
+    Loader2
+} from 'lucide-react';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
+
+interface PreviewPanelProps {
+    files: FileNode[];
+    selectedFile: FileNode | null;
+    onSelectFile: (file: FileNode) => void;
+    onFileChange?: (path: string, content: string) => void;
+    previewUrl?: string;
+    isLoading?: boolean;
+    totalFiles?: number;
+    onDownload?: () => void;
+    terminalOutput?: string[];
+    isInstalling?: boolean;
+    isBooting?: boolean;
+}
+
+// Determine language for Monaco from file extension
+const getLanguage = (path: string): string => {
+    const ext = path.split('.').pop()?.toLowerCase();
+    const languageMap: Record<string, string> = {
+        tsx: 'typescript',
+        ts: 'typescript',
+        jsx: 'javascript',
+        js: 'javascript',
+        css: 'css',
+        html: 'html',
+        json: 'json',
+        md: 'markdown',
+    };
+    return languageMap[ext || ''] || 'plaintext';
+};
+
+export const PreviewPanel: React.FC<PreviewPanelProps> = ({
+    files,
+    selectedFile,
+    onSelectFile,
+    onFileChange,
+    previewUrl,
+    totalFiles = 0,
+    onDownload,
+    terminalOutput = [],
+    isInstalling = false,
+    isBooting = false,
+}) => {
+    const [activeTab, setActiveTab] = useState<'files' | 'preview' | 'code'>('files');
+    const [copied, setCopied] = useState(false);
+    const [editedContent, setEditedContent] = useState<string>('');
+    const [hasChanges, setHasChanges] = useState(false);
+
+    const handleCopyCode = () => {
+        const content = hasChanges ? editedContent : selectedFile?.content;
+        if (content) {
+            navigator.clipboard.writeText(content);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    const handleEditorChange = useCallback((value: string | undefined) => {
+        if (value !== undefined) {
+            setEditedContent(value);
+            setHasChanges(value !== selectedFile?.content);
+        }
+    }, [selectedFile?.content]);
+
+    const handleSave = useCallback(() => {
+        if (selectedFile && hasChanges && onFileChange) {
+            onFileChange(selectedFile.path, editedContent);
+            setHasChanges(false);
+        }
+    }, [selectedFile, hasChanges, editedContent, onFileChange]);
+
+    // Reset edited content when file changes
+    React.useEffect(() => {
+        if (selectedFile?.content) {
+            setEditedContent(selectedFile.content);
+            setHasChanges(false);
+        }
+    }, [selectedFile?.path, selectedFile?.content]);
+
+    return (
+        <div className="flex flex-col h-full bg-[#0a0a0a] border-l border-[#2e2e2e]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#2e2e2e] bg-[#141414]">
+                <div className="flex items-center gap-3">
+                    <h3 className="text-sm font-medium text-gray-200">Project Files</h3>
+                    {totalFiles > 0 && (
+                        <Badge variant="success">{totalFiles} files</Badge>
+                    )}
+                </div>
+
+                {onDownload && totalFiles > 0 && (
+                    <Button variant="secondary" size="sm" onClick={onDownload}>
+                        <Download className="w-4 h-4" />
+                        Download
+                    </Button>
+                )}
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-[#2e2e2e]">
+                <button
+                    onClick={() => setActiveTab('files')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === 'files'
+                        ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-500/5'
+                        : 'text-gray-500 hover:text-gray-300'
+                        }`}
+                >
+                    <FolderTree className="w-4 h-4" />
+                    Files
+                </button>
+                <button
+                    onClick={() => setActiveTab('code')}
+                    disabled={!selectedFile}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === 'code'
+                        ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-500/5'
+                        : 'text-gray-500 hover:text-gray-300 disabled:opacity-50'
+                        }`}
+                >
+                    <Code2 className="w-4 h-4" />
+                    Code
+                    {hasChanges && <span className="w-2 h-2 bg-amber-400 rounded-full" />}
+                </button>
+                <button
+                    onClick={() => setActiveTab('preview')}
+                    disabled={!previewUrl}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === 'preview'
+                        ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-500/5'
+                        : 'text-gray-500 hover:text-gray-300 disabled:opacity-50'
+                        }`}
+                >
+                    <Eye className="w-4 h-4" />
+                    Preview
+                </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-hidden">
+                {activeTab === 'files' && (
+                    <div className="h-full overflow-y-auto">
+                        <FileTree
+                            files={files}
+                            selectedFile={selectedFile?.path}
+                            onSelectFile={(file) => {
+                                onSelectFile(file);
+                                if (file.type === 'file') {
+                                    setActiveTab('code');
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+
+                {activeTab === 'code' && selectedFile && (
+                    <div className="h-full flex flex-col">
+                        {/* File header */}
+                        <div className="flex items-center justify-between px-4 py-2 bg-[#141414] border-b border-[#2e2e2e]">
+                            <div className="flex items-center gap-2">
+                                <FileCode className="w-4 h-4 text-blue-400" />
+                                <span className="text-sm text-gray-300">{selectedFile.path}</span>
+                                {hasChanges && (
+                                    <span className="text-xs text-amber-400">(unsaved)</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {hasChanges && onFileChange && (
+                                    <button
+                                        onClick={handleSave}
+                                        className="flex items-center gap-1 px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs rounded transition-colors"
+                                    >
+                                        <Save className="w-3 h-3" />
+                                        Save
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleCopyCode}
+                                    className="p-1.5 hover:bg-[#2e2e2e] rounded transition-colors"
+                                >
+                                    {copied ? (
+                                        <Check className="w-4 h-4 text-amber-400" />
+                                    ) : (
+                                        <Copy className="w-4 h-4 text-gray-500" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Monaco Editor */}
+                        <div className="flex-1">
+                            <Editor
+                                height="100%"
+                                language={getLanguage(selectedFile.path)}
+                                value={editedContent || selectedFile.content || ''}
+                                onChange={handleEditorChange}
+                                theme="vs-dark"
+                                beforeMount={(monaco) => {
+                                    // Configure TypeScript/JavaScript to be less strict
+                                    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+                                        noSemanticValidation: true,
+                                        noSyntaxValidation: true,
+                                    });
+                                    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                                        noSemanticValidation: true,
+                                        noSyntaxValidation: true,
+                                    });
+                                    // Set compiler options
+                                    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+                                        target: monaco.languages.typescript.ScriptTarget.ESNext,
+                                        allowNonTsExtensions: true,
+                                        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+                                        module: monaco.languages.typescript.ModuleKind.ESNext,
+                                        noEmit: true,
+                                        esModuleInterop: true,
+                                        jsx: monaco.languages.typescript.JsxEmit.React,
+                                        allowJs: true,
+                                        typeRoots: ['node_modules/@types'],
+                                    });
+                                }}
+                                options={{
+                                    minimap: { enabled: false },
+                                    fontSize: 13,
+                                    lineNumbers: 'on',
+                                    scrollBeyondLastLine: false,
+                                    wordWrap: 'on',
+                                    automaticLayout: true,
+                                    padding: { top: 16, bottom: 16 },
+                                    readOnly: !onFileChange,
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'preview' && (
+                    <div className="h-full flex flex-col">
+                        {previewUrl ? (
+                            <>
+                                <div className="flex items-center justify-between px-4 py-2 bg-[#141414] border-b border-[#2e2e2e]">
+                                    <a
+                                        href={previewUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-blue-400 hover:text-blue-300 hover:underline truncate max-w-[80%] transition-colors"
+                                        title="Click to open in new tab (you may need to click 'Connect to Project')"
+                                    >
+                                        {previewUrl}
+                                    </a>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(previewUrl);
+                                            }}
+                                            className="p-1.5 hover:bg-[#2e2e2e] rounded transition-colors"
+                                            title="Copy URL"
+                                        >
+                                            <Copy className="w-4 h-4 text-gray-500 hover:text-gray-300" />
+                                        </button>
+                                        <a
+                                            href={previewUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-1.5 hover:bg-[#2e2e2e] rounded transition-colors"
+                                            title="Open in new tab"
+                                        >
+                                            <ExternalLink className="w-4 h-4 text-gray-500 hover:text-gray-300" />
+                                        </a>
+                                    </div>
+                                </div>
+                                <div className="flex-1 bg-white">
+                                    <iframe
+                                        src={previewUrl}
+                                        className="w-full h-full border-0"
+                                        title="Preview"
+                                    />
+                                </div>
+                            </>
+                        ) : (isInstalling || isBooting) ? (
+                            /* Terminal view during installation */
+                            <div className="h-full flex flex-col bg-[#0d0d0d]">
+                                <div className="flex items-center gap-2 px-4 py-2 bg-[#141414] border-b border-[#2e2e2e]">
+                                    <Terminal className="w-4 h-4 text-amber-500" />
+                                    <span className="text-sm text-gray-300">Terminal</span>
+                                    <Loader2 className="w-3 h-3 animate-spin text-amber-500 ml-auto" />
+                                    <span className="text-xs text-amber-400">
+                                        {isBooting ? 'Booting...' : 'Installing packages...'}
+                                    </span>
+                                </div>
+                                <div className="flex-1 overflow-auto p-4 font-mono text-xs">
+                                    {terminalOutput.slice(-50).map((line, i) => (
+                                        <div
+                                            key={i}
+                                            className={`py-0.5 ${line.includes('✅') ? 'text-amber-400' :
+                                                line.includes('❌') ? 'text-red-400' :
+                                                    line.includes('⚡') ? 'text-yellow-400' :
+                                                        line.includes('📦') ? 'text-blue-400' :
+                                                            line.includes('🚀') ? 'text-purple-400' :
+                                                                'text-gray-400'
+                                                }`}
+                                        >
+                                            {line}
+                                        </div>
+                                    ))}
+                                    {terminalOutput.length === 0 && (
+                                        <div className="text-gray-500">
+                                            Starting WebContainer...
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-center py-8">
+                                <Eye className="w-8 h-8 text-gray-600 mb-2" />
+                                <p className="text-sm text-gray-500">Preview not available</p>
+                                <p className="text-xs text-gray-600">Complete the build to see a preview</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
