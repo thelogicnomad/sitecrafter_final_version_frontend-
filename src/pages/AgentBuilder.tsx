@@ -285,11 +285,24 @@ export const AgentBuilder: React.FC = () => {
         return sessionId;
     };
 
+    // Get user ID from localStorage (if logged in)
+    const getUserId = () => {
+        try {
+            const user = localStorage.getItem('user');
+            if (user) {
+                const parsed = JSON.parse(user);
+                return parsed._id || parsed.id;
+            }
+        } catch { }
+        return null;
+    };
+
     // Save project to MongoDB
     const saveProject = useCallback(async (collectedFiles: { path: string; content: string }[]) => {
         try {
             const response = await axios.post(`${BACKEND_URL}/api/projects`, {
                 sessionId: getSessionId(),
+                userId: getUserId(),
                 prompt: pendingPrompt,
                 files: collectedFiles,
                 blueprint: blueprint,
@@ -297,7 +310,7 @@ export const AgentBuilder: React.FC = () => {
 
             if (response.data.success) {
                 setProjectId(response.data.projectId);
-                addMessage('success', `💾 Project saved: ${response.data.name}`);
+                addMessage('success', `Project saved: ${response.data.name}`);
                 console.log('Project saved with ID:', response.data.projectId);
             }
         } catch (err) {
@@ -879,13 +892,18 @@ export const AgentBuilder: React.FC = () => {
                                 setStatusMessage(data.message);
                             } else if (data.type === 'complete') {
                                 setStatus('complete');
-                                addMessage('success', `✅ Generated ${totalFiles} files!`);
+                                addMessage('success', `Generated ${totalFiles} files!`);
                                 if (collected.length > 0) {
+                                    // Save to MongoDB IMMEDIATELY (don't wait for WebContainer)
+                                    // This runs in parallel with mounting files
+                                    saveProject(collected).catch(err => {
+                                        console.error('Failed to save project:', err);
+                                    });
+
+                                    // Mount files and start dev server (these take time)
                                     const fsTree = toWebContainerFS(collected);
                                     await mountFiles(fsTree);
                                     await startDevServer();
-                                    // Save project to MongoDB
-                                    await saveProject(collected);
                                 }
                             }
                         } catch { }

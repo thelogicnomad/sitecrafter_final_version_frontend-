@@ -62,14 +62,13 @@ export const ProjectHistory: React.FC = () => {
     const fetchProjects = async () => {
         try {
             setLoading(true);
-            const sessionId = getSessionId();
             const userId = getUserId();
+            const sessionId = getSessionId();
 
-            // Build query with both sessionId and userId
-            let queryParams = `sessionId=${sessionId}`;
-            if (userId) {
-                queryParams += `&userId=${userId}`;
-            }
+            // If logged in, query by userId only; otherwise use sessionId for anonymous users
+            const queryParams = userId
+                ? `userId=${userId}`
+                : `sessionId=${sessionId}`;
 
             const response = await axios.get(`${BACKEND_URL}/api/projects?${queryParams}`);
             setProjects(response.data.projects || []);
