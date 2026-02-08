@@ -17,6 +17,8 @@
     "@types/react-toastify": "^4.0.2",
     "@types/xml2js": "^0.4.14",
     "@webcontainer/api": "^1.5.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
     "axios": "^1.7.8",
     "dagre": "^0.8.5",
     "events": "^3.3.0",
@@ -32,7 +34,8 @@
     "react-toastify": "^11.0.3",
     "reactflow": "^11.11.4",
     "speech-to-text": "^3.0.2",
-    "xml2js": "^0.6.2"
+    "xml2js": "^0.6.2",
+    "xterm": "^5.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

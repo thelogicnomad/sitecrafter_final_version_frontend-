@@ -16,6 +16,7 @@ import { parseStackTrace } from '../utils/errorReporter';
 import type { ProjectBlueprint } from '../types/planning.types';
 import { ArrowLeft, Sparkles, Loader2, Zap, FolderOpen } from 'lucide-react';
 import type { FileSystemTree } from '@webcontainer/api';
+// import { WebContainerTerminal } from '../components/terminal/WebContainerTerminal';
 
 const MAX_FIX_ATTEMPTS = 50; // Allow many fix attempts for continuous error resolution
 
@@ -108,6 +109,8 @@ export const AgentBuilder: React.FC = () => {
         startDevServer,
         updateFile,
         reset: resetWebContainer,
+        runCommand,
+        killProcess,
     } = useWebContainer();
 
     // State
@@ -999,37 +1002,47 @@ export const AgentBuilder: React.FC = () => {
             )}
 
             {/* Main Content */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* Chat Panel - Left Side */}
-                <div className="w-1/2 flex flex-col border-r border-[#2e2e2e]">
-                    <ChatPanel
-                        messages={messages}
-                        phases={phases}
-                        status={status}
-                        statusMessage={statusMessage}
-                        onSendMessage={handleSendMessage}
-                        onStop={handleStop}
-                        isProcessing={isProcessing}
-                        isCreating={isCreating}
-                    />
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Chat Panel - Left Side */}
+                    <div className="w-1/2 flex flex-col border-r border-[#2e2e2e]">
+                        <ChatPanel
+                            messages={messages}
+                            phases={phases}
+                            status={status}
+                            statusMessage={statusMessage}
+                            onSendMessage={handleSendMessage}
+                            onStop={handleStop}
+                            isProcessing={isProcessing}
+                            isCreating={isCreating}
+                        />
+                    </div>
+
+                    {/* Preview Panel - Right Side */}
+                    <div className="w-1/2 flex flex-col">
+                        <PreviewPanel
+                            files={fileTree}
+                            selectedFile={selectedFile}
+                            onSelectFile={handleSelectFile}
+                            onFileChange={handleFileChange}
+                            previewUrl={wcPreviewUrl || undefined}
+                            isLoading={isProcessing || isInstalling || isBooting}
+                            totalFiles={files.length}
+                            onDownload={handleDownload}
+                            terminalOutput={terminalOutput}
+                            isInstalling={isInstalling}
+                            isBooting={isBooting}
+                        />
+                    </div>
                 </div>
 
-                {/* Preview Panel - Right Side */}
-                <div className="w-1/2 flex flex-col">
-                    <PreviewPanel
-                        files={fileTree}
-                        selectedFile={selectedFile}
-                        onSelectFile={handleSelectFile}
-                        onFileChange={handleFileChange}
-                        previewUrl={wcPreviewUrl || undefined}
-                        isLoading={isProcessing || isInstalling || isBooting}
-                        totalFiles={files.length}
-                        onDownload={handleDownload}
-                        terminalOutput={terminalOutput}
-                        isInstalling={isInstalling}
-                        isBooting={isBooting}
-                    />
-                </div>
+                {/* Terminal Panel - Bottom - COMMENTED OUT */}
+                {/* <WebContainerTerminal
+                    terminalOutput={terminalOutput}
+                    onCommand={runCommand}
+                    onKill={killProcess}
+                    isRunning={isRunning}
+                /> */}
             </div>
         </div>
     );

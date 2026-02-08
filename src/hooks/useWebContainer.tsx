@@ -17,6 +17,8 @@ interface WebContainerContextType {
     startDevServer: () => Promise<void>;
     updateFile: (path: string, content: string) => Promise<void>;
     reset: () => void;
+    runCommand: (command: string) => Promise<void>;
+    killProcess: () => void;
 }
 
 const WebContainerContext = createContext<WebContainerContextType | null>(null);
@@ -130,6 +132,39 @@ export const WebContainerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     setPreviewUrl(url);
                     setIsRunning(true);
                     setIsInstalling(false);
+
+                    // Extract session ID from URL for cross-tab communication
+                    // URL format: https://xxx--port--sessionId.local-credentialless.webcontainer-api.io
+                    const urlMatch = url.match(/--(\w+)\.local-credentialless/);
+                    const sessionId = urlMatch ? urlMatch[1] : 'latest';
+
+                    // Store preview URL in localStorage for cross-tab access
+                    localStorage.setItem(`webcontainer_preview_${sessionId}`, url);
+                    localStorage.setItem('webcontainer_latest_preview', url);
+                    localStorage.setItem('webcontainer_session_id', sessionId);
+                    console.log(`📡 Preview URL stored for session: ${sessionId}`);
+
+                    // Broadcast to other tabs using BroadcastChannel
+                    if ('BroadcastChannel' in window) {
+                        const channel = new BroadcastChannel('webcontainer_session');
+                        channel.postMessage({
+                            type: 'PREVIEW_URL_AVAILABLE',
+                            sessionId: sessionId,
+                            previewUrl: url
+                        });
+
+                        // Also listen for requests from other tabs
+                        channel.onmessage = (event) => {
+                            if (event.data.type === 'PREVIEW_URL_REQUEST') {
+                                console.log('📡 Received preview URL request, responding...');
+                                channel.postMessage({
+                                    type: 'PREVIEW_URL_RESPONSE',
+                                    sessionId: sessionId,
+                                    previewUrl: url
+                                });
+                            }
+                        };
+                    }
                 });
 
                 appendOutput('✅ WebContainer booted');
@@ -215,12 +250,67 @@ export const WebContainerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         ? originalHtml.replace('</head>', `  ${errorReporter}\n  </head>`)
                         : originalHtml;
                     files['index.html'] = { file: { contents: modifiedHtml } };
-                    appendOutput('🔍 Error reporter injected');
+                    appendOutput('Error reporter injected');
+                }
+            }
+
+            // Check for additional packages in the mounted package.json
+            const basePackages = new Set([
+                ...Object.keys(BASE_PACKAGE_JSON.dependencies),
+                ...Object.keys(BASE_PACKAGE_JSON.devDependencies)
+            ]);
+
+            let newPackages: string[] = [];
+            if (files['package.json']) {
+                const pkgEntry = files['package.json'];
+                if ('file' in pkgEntry && pkgEntry.file && 'contents' in pkgEntry.file) {
+                    try {
+                        const contents = typeof pkgEntry.file.contents === 'string'
+                            ? pkgEntry.file.contents
+                            : new TextDecoder().decode(pkgEntry.file.contents);
+                        const projectPkg = JSON.parse(contents);
+
+                        // Find new dependencies
+                        for (const [pkg, version] of Object.entries(projectPkg.dependencies || {})) {
+                            if (!basePackages.has(pkg)) {
+                                newPackages.push(`${pkg}@${version}`);
+                            }
+                        }
+                        // Find new devDependencies
+                        for (const [pkg, version] of Object.entries(projectPkg.devDependencies || {})) {
+                            if (!basePackages.has(pkg)) {
+                                newPackages.push(`${pkg}@${version}`);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse package.json for dynamic packages:', e);
+                    }
                 }
             }
 
             await instance.mount(files);
-            appendOutput('✅ Files mounted');
+            appendOutput('Files mounted');
+
+            // Install additional packages if any were detected
+            if (newPackages.length > 0) {
+                appendOutput(`Installing ${newPackages.length} additional packages: ${newPackages.map(p => p.split('@')[0]).join(', ')}`);
+                const addProcess = await instance.spawn('npm', [
+                    'install', ...newPackages, '--prefer-offline', '--no-audit', '--no-fund', '--legacy-peer-deps'
+                ]);
+
+                addProcess.output.pipeTo(new WritableStream({
+                    write(data) {
+                        data.split('\n').filter(Boolean).forEach(line => appendOutput(line));
+                    }
+                }));
+
+                const exitCode = await addProcess.exit;
+                if (exitCode === 0) {
+                    appendOutput(`Additional packages installed successfully`);
+                } else {
+                    appendOutput(`Warning: Some packages may have failed to install`);
+                }
+            }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Mount failed';
             setError(message);
@@ -271,9 +361,59 @@ export const WebContainerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         try {
             const instance = await boot();
             await instance.fs.writeFile(path, content);
-            appendOutput(`✏️ Updated: ${path}`);
+            appendOutput(`Updated: ${path}`);
+
+            // Check if package.json was updated - detect and install new packages
+            if (path === 'package.json' || path === '/package.json') {
+                try {
+                    const basePackages = new Set([
+                        ...Object.keys(BASE_PACKAGE_JSON.dependencies),
+                        ...Object.keys(BASE_PACKAGE_JSON.devDependencies)
+                    ]);
+
+                    const updatedPkg = JSON.parse(content);
+                    const newPackages: string[] = [];
+
+                    // Find new dependencies
+                    for (const [pkg, version] of Object.entries(updatedPkg.dependencies || {})) {
+                        if (!basePackages.has(pkg)) {
+                            newPackages.push(`${pkg}@${version}`);
+                        }
+                    }
+                    // Find new devDependencies
+                    for (const [pkg, version] of Object.entries(updatedPkg.devDependencies || {})) {
+                        if (!basePackages.has(pkg)) {
+                            newPackages.push(`${pkg}@${version}`);
+                        }
+                    }
+
+                    if (newPackages.length > 0) {
+                        appendOutput(`Detected ${newPackages.length} new packages: ${newPackages.map(p => p.split('@')[0]).join(', ')}`);
+                        appendOutput(`Installing new packages...`);
+
+                        const addProcess = await instance.spawn('npm', [
+                            'install', ...newPackages, '--prefer-offline', '--no-audit', '--no-fund', '--legacy-peer-deps'
+                        ]);
+
+                        addProcess.output.pipeTo(new WritableStream({
+                            write(data) {
+                                data.split('\n').filter(Boolean).forEach(line => appendOutput(line));
+                            }
+                        }));
+
+                        const exitCode = await addProcess.exit;
+                        if (exitCode === 0) {
+                            appendOutput(`New packages installed successfully`);
+                        } else {
+                            appendOutput(`Warning: Some packages may have failed to install`);
+                        }
+                    }
+                } catch (parseError) {
+                    console.warn('Failed to parse package.json for new packages:', parseError);
+                }
+            }
         } catch (err) {
-            appendOutput(`❌ Failed to update ${path}: ${err}`);
+            appendOutput(`Failed to update ${path}: ${err}`);
         }
     }, [boot, appendOutput]);
 
@@ -289,6 +429,47 @@ export const WebContainerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setTerminalOutput([]);
     }, []);
 
+    // Kill the current running process (Ctrl+C equivalent)
+    const killProcess = useCallback(() => {
+        if (processRef.current) {
+            processRef.current.kill();
+            processRef.current = null;
+            appendOutput('Process terminated');
+            setIsRunning(false);
+        }
+    }, [appendOutput]);
+
+    // Run an arbitrary command in WebContainer
+    const runCommand = useCallback(async (command: string) => {
+        try {
+            const instance = await boot();
+            appendOutput(`$ ${command}`);
+
+            // Parse command into program and args
+            const parts = command.trim().split(/\s+/);
+            const program = parts[0];
+            const args = parts.slice(1);
+
+            const process = await instance.spawn(program, args);
+            processRef.current = process;
+            setIsRunning(true);
+
+            process.output.pipeTo(new WritableStream({
+                write(data) {
+                    data.split('\n').filter(Boolean).forEach(line => appendOutput(line));
+                }
+            }));
+
+            const exitCode = await process.exit;
+            appendOutput(`Process exited with code ${exitCode}`);
+            setIsRunning(false);
+            processRef.current = null;
+        } catch (err) {
+            appendOutput(`Command failed: ${err}`);
+            setIsRunning(false);
+        }
+    }, [boot, appendOutput]);
+
     useEffect(() => {
         return () => { if (processRef.current) processRef.current.kill(); };
     }, []);
@@ -296,6 +477,7 @@ export const WebContainerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const value: WebContainerContextType = {
         isBooting, isInstalling, isRunning, previewUrl, error, terminalOutput,
         isPreWarmed, isPreWarming, mountFiles, startDevServer, updateFile, reset,
+        runCommand, killProcess,
     };
 
     return (
