@@ -9,7 +9,7 @@ const ProtectedRoute = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAuthenticating, setIsAuthenticating] = useState(true);
-  
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -18,28 +18,31 @@ const ProtectedRoute = () => {
           setIsAuthenticating(false);
           return;
         }
-        
+
         // Check for token in localStorage
         const tokenFromStorage = localStorage.getItem("token");
         const userFromStorage = localStorage.getItem("user");
-        
+
         if (tokenFromStorage && userFromStorage) {
           setIsAuthenticating(false);
           return;
         }
-        
+
         // Check for Google auth token in URL after redirect
         const query = new URLSearchParams(window.location.search);
         const urlToken = query.get("token");
         const userData = query.get("user");
-        
+
         if (urlToken && userData) {
           try {
             const user = JSON.parse(decodeURIComponent(userData));
             await login(user, urlToken);
-            
-            // Clean the URL (remove query parameters)
-            window.history.replaceState({}, document.title, location.pathname);
+
+            // Clean the URL and fix browser history so back button goes to home
+            // First, replace the current history entry with the home page
+            window.history.replaceState({}, document.title, '/');
+            // Then navigate to /agent - this creates a new history entry
+            navigate('/agent', { replace: false });
             setIsAuthenticating(false);
             return;
           } catch (error) {
@@ -48,13 +51,13 @@ const ProtectedRoute = () => {
             return;
           }
         }
-        
+
         // As a last resort, check if there's an active session
         try {
-          const response = await axios.get(`${BACKEND_URL}/auth/check-session`, { 
-            withCredentials: true 
+          const response = await axios.get(`${BACKEND_URL}/auth/check-session`, {
+            withCredentials: true
           });
-          
+
           if (response.data.user && response.data.token) {
             await login(response.data.user, response.data.token);
             setIsAuthenticating(false);
@@ -85,7 +88,7 @@ const ProtectedRoute = () => {
 
   // Check if user is authenticated
   const isAuthenticated = user && token;
-  
+
   // If not authenticated after all checks, redirect to login
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

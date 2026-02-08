@@ -58,7 +58,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       setToken(authToken);
 
-      navigate("/agent", { replace: true });
+      // Note: Navigation is handled by the calling component (Login.tsx or ProtectedRoute.tsx)
+      // to ensure proper history management for back button behavior
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
