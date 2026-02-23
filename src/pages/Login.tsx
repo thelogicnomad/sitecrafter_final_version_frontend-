@@ -5,7 +5,7 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from '../components/context/AuthContext';
-import { BACKEND_URL } from '../config';
+import { BACKEND_URL, AUTH_BACKEND_URL } from '../config';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { GoogleLogo } from '../components/googllogo';
 
@@ -80,7 +80,7 @@ const Login = () => {
     localStorage.setItem('googleAuthInProgress', 'true');
 
     // Redirect to Google auth endpoint
-    window.location.href = `${BACKEND_URL}/auth/google`;
+    window.location.href = `${AUTH_BACKEND_URL}/auth/google`;
   };
 
   return (

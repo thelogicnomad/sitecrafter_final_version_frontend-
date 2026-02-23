@@ -1,3 +1,3 @@
-//export const BACKEND_URL = "http://localhost:3000"
+export const BACKEND_URL = "http://ec2-3-84-181-111.compute-1.amazonaws.com"
 
-export const BACKEND_URL = "https://monticulate-colleen-strainless.ngrok-free.dev"
+export const AUTH_BACKEND_URL = "https://sitecrafter-final-version-backend.vercel.app"
