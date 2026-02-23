@@ -2,7 +2,7 @@ import { Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { BACKEND_URL, AUTH_BACKEND_URL } from "../config";
+import { BACKEND_URL } from "../config";
 
 const ProtectedRoute = () => {
   const { user, token, login } = useAuth();
@@ -54,7 +54,7 @@ const ProtectedRoute = () => {
 
         // As a last resort, check if there's an active session
         try {
-          const response = await axios.get(`${AUTH_BACKEND_URL}/auth/check-session`, {
+          const response = await axios.get(`${BACKEND_URL}/auth/check-session`, {
             withCredentials: true
           });
 

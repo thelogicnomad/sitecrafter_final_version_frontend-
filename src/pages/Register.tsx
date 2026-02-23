@@ -4,7 +4,7 @@ import { Mail, Lock, User, UserPlus, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { BACKEND_URL, AUTH_BACKEND_URL } from '../config';
+import { BACKEND_URL } from '../config';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { GoogleLogo } from '../components/googllogo';
 import { useAuth } from '../components/context/AuthContext';
@@ -80,7 +80,7 @@ const Register = () => {
     localStorage.setItem('googleAuthInProgress', 'true');
 
     // Redirect to Google auth endpoint
-    window.location.href = `${AUTH_BACKEND_URL}/auth/google`;
+    window.location.href = `${BACKEND_URL}/auth/google`;
   };
 
   return (
