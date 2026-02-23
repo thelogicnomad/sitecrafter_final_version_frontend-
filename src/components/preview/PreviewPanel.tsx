@@ -96,7 +96,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     }, [selectedFile?.path, selectedFile?.content]);
 
     return (
-        <div className="flex flex-col h-full bg-[#0a0a0a] border-l border-[#2e2e2e]">
+        <div className="flex flex-col h-full bg-[#0a0a0a] md:border-l border-[#2e2e2e]">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#2e2e2e] bg-[#141414]">
                 <div className="flex items-center gap-3">
