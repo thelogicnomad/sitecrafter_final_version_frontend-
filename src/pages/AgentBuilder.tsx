@@ -963,7 +963,7 @@ export const AgentBuilder: React.FC = () => {
             <header className="flex items-center justify-between px-2 py-2 md:px-4 md:py-3 border-b border-[#2e2e2e] bg-[#141414]">
                 <div className="flex items-center gap-2 md:gap-4">
                     <button
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => navigate('/')}
                         className="p-1.5 md:p-2 hover:bg-[#2e2e2e] rounded-lg transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
@@ -1005,7 +1005,7 @@ export const AgentBuilder: React.FC = () => {
                         <span className="hidden sm:inline">My Projects</span>
                     </button>
 
-                    <span className="hidden md:inline text-xs text-gray-500">Powered by LangGraph + Gemini</span>
+                    <span className="hidden md:inline text-xs text-gray-500"></span>
                 </div>
             </header>
 
@@ -1025,8 +1025,8 @@ export const AgentBuilder: React.FC = () => {
                     <button
                         onClick={() => setActiveMobilePanel('chat')}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeMobilePanel === 'chat'
-                                ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-500/5'
-                                : 'text-gray-500 hover:text-gray-300'
+                            ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-500/5'
+                            : 'text-gray-500 hover:text-gray-300'
                             }`}
                     >
                         <MessageSquare className="w-4 h-4" />
@@ -1035,8 +1035,8 @@ export const AgentBuilder: React.FC = () => {
                     <button
                         onClick={() => setActiveMobilePanel('preview')}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeMobilePanel === 'preview'
-                                ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-500/5'
-                                : 'text-gray-500 hover:text-gray-300'
+                            ? 'text-amber-400 border-b-2 border-amber-400 bg-amber-500/5'
+                            : 'text-gray-500 hover:text-gray-300'
                             }`}
                     >
                         <Layers className="w-4 h-4" />
