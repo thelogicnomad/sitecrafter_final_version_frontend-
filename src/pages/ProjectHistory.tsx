@@ -49,7 +49,7 @@ export const ProjectHistory: React.FC = () => {
             const user = localStorage.getItem('user');
             if (user) {
                 const parsed = JSON.parse(user);
-                return parsed._id || parsed.id;
+                return parsed.userId || parsed.id || parsed._id;
             }
         } catch { }
         return null;
@@ -64,13 +64,18 @@ export const ProjectHistory: React.FC = () => {
             setLoading(true);
             const userId = getUserId();
             const sessionId = getSessionId();
+            const token = localStorage.getItem('token');
 
-            // If logged in, query by userId only; otherwise use sessionId for anonymous users
             const queryParams = userId
                 ? `userId=${userId}`
                 : `sessionId=${sessionId}`;
 
-            const response = await axios.get(`${BACKEND_URL}/api/projects?${queryParams}`);
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await axios.get(`${BACKEND_URL}/api/projects?${queryParams}`, { headers });
             setProjects(response.data.projects || []);
         } catch (err: any) {
             setError(err.message || 'Failed to load projects');

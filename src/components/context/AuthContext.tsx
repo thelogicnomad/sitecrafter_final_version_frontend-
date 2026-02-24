@@ -25,6 +25,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initAuth = async () => {
+      axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
+
       const storedToken = localStorage.getItem("token");
       const storedUser = localStorage.getItem("user");
 
@@ -33,7 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = JSON.parse(storedUser);
           setToken(storedToken);
           setUser(userData);
-          // Set default authorization header
           axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
         } catch (error) {
           console.error("Failed to restore auth state:", error);

@@ -292,7 +292,7 @@ export const AgentBuilder: React.FC = () => {
             const user = localStorage.getItem('user');
             if (user) {
                 const parsed = JSON.parse(user);
-                return parsed._id || parsed.id;
+                return parsed.userId || parsed.id || parsed._id;
             }
         } catch { }
         return null;
@@ -488,7 +488,7 @@ export const AgentBuilder: React.FC = () => {
                 // Generate a simple component using LLM
                 const response = await fetch(`${BACKEND_URL}/api/fix-error`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
                     body: JSON.stringify({
                         error: `Create a new React component for: ${componentName}. The file path is ${filePath}. Make it a functional TypeScript component with proper props interface and modern styling using Tailwind CSS.`,
                         filePath: filePath,
@@ -550,7 +550,7 @@ export const AgentBuilder: React.FC = () => {
 
                 const response = await fetch(`${BACKEND_URL}/api/fix-error`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
                     body: JSON.stringify({
                         error: errorText,
                         filePath: targetFile.path,
@@ -860,7 +860,7 @@ export const AgentBuilder: React.FC = () => {
 
             const response = await fetch(`${BACKEND_URL}/chat/langgraph-stream`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
                 body: JSON.stringify({ prompt, projectType: 'frontend' }),
                 signal: abortControllerRef.current.signal
             });
